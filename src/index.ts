@@ -33,6 +33,7 @@ export { Ryanair } from './ryanair.js';
 // Types
 export type {
   Flight,
+  FlightDetails,
   Trip,
   Airport,
   Logger,
@@ -40,6 +41,7 @@ export type {
   RyanairConfig,
   OneWayFlightOptions,
   ReturnFlightOptions,
+  GetFlightsOptions,
 } from './types.js';
 
 // Errors

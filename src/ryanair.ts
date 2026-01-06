@@ -1,14 +1,17 @@
 import type {
   Flight,
+  FlightDetails,
   Trip,
   Logger,
   RyanairConfig,
   RetryConfig,
   OneWayFlightOptions,
   ReturnFlightOptions,
+  GetFlightsOptions,
   RyanairApiResponse,
   ApiFare,
   ApiFlight,
+  AvailabilityApiResponse,
 } from './types.js';
 import { SessionManager } from './session-manager.js';
 import { withRetry, DEFAULT_RETRY_CONFIG } from './retry.js';
@@ -18,6 +21,11 @@ import { formatDate, formatTime, parseISODate } from './utils/date-formatter.js'
  * Base URL for Ryanair's fare finder API
  */
 const API_BASE_URL = 'https://services-api.ryanair.com/farfnd/v4';
+
+/**
+ * Base URL for Ryanair's booking availability API
+ */
+const AVAILABILITY_API_URL = 'https://www.ryanair.com/api/booking/v4/en-gb/availability';
 
 /**
  * Default console logger implementation
@@ -269,5 +277,125 @@ export class Ryanair {
           inbound,
         };
       });
+  }
+
+  /**
+   * Get all available flights for a specific route on a given date.
+   *
+   * Unlike getCheapestFlights which returns only the cheapest flight per destination,
+   * this method returns ALL flights available on the specified route and date.
+   *
+   * @param options - Search options
+   * @returns Array of FlightDetails objects with extended information
+   *
+   * @example
+   * ```ts
+   * const flights = await api.getFlights({
+   *   origin: 'STN',
+   *   destination: 'BTS',
+   *   dateOut: '2024-03-15',
+   * });
+   *
+   * for (const flight of flights) {
+   *   console.log(`${flight.flightNumber}: ${flight.departureTime} - ${flight.arrivalTime}`);
+   *   console.log(`  Price: ${flight.price} ${flight.currency}`);
+   *   console.log(`  Duration: ${flight.duration}`);
+   *   console.log(`  Seats left: ${flight.seatsLeft}`);
+   * }
+   * ```
+   */
+  async getFlights(options: GetFlightsOptions): Promise<FlightDetails[]> {
+    const {
+      origin,
+      destination,
+      dateOut,
+      adults = 1,
+      teens = 0,
+      children = 0,
+      infants = 0,
+      promoCode = '',
+      includeConnectingFlights = false,
+      flexDaysBefore = 0,
+      flexDaysAfter = 0,
+    } = options;
+
+    const params: Record<string, string | number | undefined> = {
+      ADT: adults,
+      TEEN: teens,
+      CHD: children,
+      INF: infants,
+      DateIn: '',
+      DateOut: formatDate(dateOut),
+      Destination: destination.toUpperCase(),
+      Origin: origin.toUpperCase(),
+      Disc: 0,
+      promoCode,
+      IncludeConnectingFlights: includeConnectingFlights.toString(),
+      FlexDaysBeforeOut: flexDaysBefore,
+      FlexDaysOut: flexDaysAfter,
+      FlexDaysBeforeIn: 0,
+      FlexDaysIn: 0,
+      RoundTrip: 'false',
+      ToUs: 'AGREED',
+    };
+
+    const response = await this.query<AvailabilityApiResponse>(AVAILABILITY_API_URL, params);
+
+    const trips = response.trips;
+    if (!trips || trips.length === 0) {
+      return [];
+    }
+
+    const trip = trips[0];
+    if (!trip) {
+      return [];
+    }
+
+    const dates = trip.dates;
+    if (!dates || dates.length === 0) {
+      return [];
+    }
+
+    const dateEntry = dates[0];
+    if (!dateEntry) {
+      return [];
+    }
+
+    const flights = dateEntry.flights;
+    if (!flights || flights.length === 0) {
+      return [];
+    }
+
+    const currency = response.currency || this.currency || 'EUR';
+    const originCode = trip.origin;
+    const originName = trip.originName;
+    const destinationCode = trip.destination;
+    const destinationName = trip.destinationName;
+
+    const results: FlightDetails[] = [];
+
+    for (const flight of flights) {
+      const fare = flight.regularFare?.fares?.[0];
+      if (!fare) {
+        continue;
+      }
+
+      results.push({
+        departureTime: parseISODate(flight.time[0]),
+        arrivalTime: parseISODate(flight.time[1]),
+        flightNumber: flight.flightNumber,
+        price: fare.amount,
+        currency,
+        origin: originCode,
+        originFull: originName,
+        destination: destinationCode,
+        destinationFull: destinationName,
+        duration: flight.duration,
+        seatsLeft: flight.faresLeft,
+        operatedBy: flight.operatedBy || 'Ryanair',
+      });
+    }
+
+    return results;
   }
 }

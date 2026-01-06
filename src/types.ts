@@ -138,6 +138,48 @@ export interface ReturnFlightOptions {
   customParams?: Record<string, string | number>;
 }
 
+/**
+ * Options for getting all flights on a specific route and date
+ */
+export interface GetFlightsOptions {
+  /** IATA code of departure airport */
+  origin: string;
+  /** IATA code of destination airport */
+  destination: string;
+  /** Departure date (Date object or "YYYY-MM-DD" string) */
+  dateOut: Date | string;
+  /** Number of adult passengers (default: 1) */
+  adults?: number;
+  /** Number of teen passengers (default: 0) */
+  teens?: number;
+  /** Number of child passengers (default: 0) */
+  children?: number;
+  /** Number of infant passengers (default: 0) */
+  infants?: number;
+  /** Promo code (optional) */
+  promoCode?: string;
+  /** Include connecting flights (default: false) */
+  includeConnectingFlights?: boolean;
+  /** Number of flex days before outbound date (default: 0) */
+  flexDaysBefore?: number;
+  /** Number of flex days after outbound date (default: 0) */
+  flexDaysAfter?: number;
+}
+
+/**
+ * Extended flight information from availability API
+ */
+export interface FlightDetails extends Flight {
+  /** Flight arrival time */
+  readonly arrivalTime: Date;
+  /** Flight duration (e.g., "02:25") */
+  readonly duration: string;
+  /** Number of seats left at this price */
+  readonly seatsLeft: number;
+  /** Operator (e.g., "Ryanair", "Buzz", "Malta Air") */
+  readonly operatedBy: string;
+}
+
 // ============================================================================
 // Internal API Response Types
 // ============================================================================
@@ -200,4 +242,75 @@ export interface ApiSummary {
   previousPrice: number | null;
   newRoute: boolean;
   tripDurationDays?: number;
+}
+
+// ============================================================================
+// Availability API Response Types (for getFlights)
+// ============================================================================
+
+/** @internal */
+export interface AvailabilityApiResponse {
+  currency: string;
+  currPrecision: number;
+  trips: AvailabilityTrip[];
+  serverTimeUTC: string;
+}
+
+/** @internal */
+export interface AvailabilityTrip {
+  origin: string;
+  originName: string;
+  destination: string;
+  destinationName: string;
+  dates: AvailabilityDate[];
+}
+
+/** @internal */
+export interface AvailabilityDate {
+  dateOut: string;
+  flights: AvailabilityFlight[];
+}
+
+/** @internal */
+export interface AvailabilityFlight {
+  faresLeft: number;
+  flightKey: string;
+  infantsLeft: number;
+  regularFare?: AvailabilityFare;
+  operatedBy: string;
+  segments: AvailabilitySegment[];
+  flightNumber: string;
+  time: [string, string];
+  timeUTC: [string, string];
+  duration: string;
+}
+
+/** @internal */
+export interface AvailabilityFare {
+  fareKey: string;
+  fares: AvailabilityFareDetail[];
+}
+
+/** @internal */
+export interface AvailabilityFareDetail {
+  type: string;
+  amount: number;
+  count: number;
+  hasDiscount: boolean;
+  publishedFare: number;
+  discountInPercent: number;
+  hasPromoDiscount: boolean;
+  discountAmount: number;
+  hasBogof: boolean;
+}
+
+/** @internal */
+export interface AvailabilitySegment {
+  segmentNr: number;
+  origin: string;
+  destination: string;
+  flightNumber: string;
+  time: [string, string];
+  timeUTC: [string, string];
+  duration: string;
 }
