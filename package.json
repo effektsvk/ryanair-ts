@@ -2,15 +2,15 @@
   "name": "ryanair-ts",
   "version": "1.0.0",
   "description": "TypeScript client for Ryanair flight search API",
-  "author": "Ciaran O hAolain <ciaran@cohaolain.ie>",
+  "author": "Erik Slovak <erik.slovak7@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cohaolain/ryanair-py.git"
+    "url": "git+https://github.com/effektsvk/ryanair-ts.git"
   },
-  "homepage": "https://github.com/cohaolain/ryanair-py#readme",
+  "homepage": "https://github.com/effektsvk/ryanair-ts#readme",
   "bugs": {
-    "url": "https://github.com/cohaolain/ryanair-py/issues"
+    "url": "https://github.com/effektsvk/ryanair-ts/issues"
   },
   "keywords": [
     "ryanair",
