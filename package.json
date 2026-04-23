@@ -1,6 +1,6 @@
 {
   "name": "ryanair-ts",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "TypeScript client for Ryanair flight search API",
   "author": "Erik Slovak <erik.slovak7@gmail.com>",
   "license": "MIT",
@@ -48,6 +48,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "vitest run",
+    "test:live": "tsx scripts/live-api-probe.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src",

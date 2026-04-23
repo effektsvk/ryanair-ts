@@ -234,6 +234,88 @@ describe('Ryanair', () => {
     });
   });
 
+  describe('getFlights', () => {
+    it('should send Ryanair web client headers to the availability API', async () => {
+      let capturedHeaders: Headers | null = null;
+
+      server.use(
+        http.get('https://www.ryanair.com/api/booking/v4/en-gb/availability', ({ request }) => {
+          capturedHeaders = request.headers;
+          return HttpResponse.json({
+            currency: 'EUR',
+            currPrecision: 2,
+            serverTimeUTC: '2026-04-23T12:00:00.000Z',
+            trips: [
+              {
+                origin: 'DUB',
+                originName: 'Dublin',
+                destination: 'BRS',
+                destinationName: 'Bristol',
+                dates: [
+                  {
+                    dateOut: '2026-05-23T00:00:00.000',
+                    flights: [
+                      {
+                        faresLeft: 5,
+                        flightKey: 'FR~ 504~ ~~DUB~05/23/2026 06:00~BRS~05/23/2026 07:05~~',
+                        infantsLeft: 18,
+                        regularFare: {
+                          fareKey: 'fare-key',
+                          fares: [
+                            {
+                              type: 'ADT',
+                              amount: 14.99,
+                              count: 1,
+                              hasDiscount: false,
+                              publishedFare: 14.99,
+                              discountInPercent: 0,
+                              hasPromoDiscount: false,
+                              discountAmount: 0,
+                              hasBogof: false,
+                            },
+                          ],
+                        },
+                        operatedBy: 'Ryanair',
+                        segments: [],
+                        flightNumber: 'FR 504',
+                        time: ['2026-05-23T06:00:00.000', '2026-05-23T07:05:00.000'],
+                        timeUTC: ['2026-05-23T05:00:00.000Z', '2026-05-23T06:05:00.000Z'],
+                        duration: '01:05',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          });
+        })
+      );
+
+      const flights = await api.getFlights({
+        origin: 'DUB',
+        destination: 'BRS',
+        dateOut: '2026-05-23',
+      });
+
+      expect(flights).toHaveLength(1);
+      expect(flights[0]).toMatchObject({
+        flightNumber: 'FR 504',
+        price: 14.99,
+        currency: 'EUR',
+        origin: 'DUB',
+        destination: 'BRS',
+      });
+
+      expect(capturedHeaders).not.toBeNull();
+      expect(capturedHeaders!.get('client')).toBe('desktop');
+      expect(capturedHeaders!.get('client-version')).toBe('3.194.0');
+      expect(capturedHeaders!.get('accept')).toBe('application/json, text/plain, */*');
+      expect(capturedHeaders!.get('user-agent')).toContain('Mozilla/5.0');
+      expect(capturedHeaders!.get('referer')).toContain('/ie/en/trip/flights/select');
+      expect(capturedHeaders!.get('cookie')).toContain('rid=test-session-id');
+    });
+  });
+
   describe('retry mechanism', () => {
     it('should retry on server error and eventually succeed', async () => {
       let callCount = 0;

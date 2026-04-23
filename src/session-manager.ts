@@ -6,6 +6,16 @@ import { HttpError } from './errors.js';
 const BASE_SITE_FOR_SESSION_URL = 'https://www.ryanair.com/ie/en';
 
 /**
+ * Ryanair's booking APIs currently require the same client hints used by
+ * their web frontend, in addition to a fresh site cookie.
+ */
+const RYANAIR_WEB_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+  '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+const RYANAIR_WEB_CLIENT_VERSION = '3.194.0';
+
+/**
  * Parse Set-Cookie header(s) and extract cookie name-value pairs
  */
 function parseCookies(setCookieHeader: string | null): Map<string, string> {
@@ -57,6 +67,10 @@ export class SessionManager {
     const response = await fetch(BASE_SITE_FOR_SESSION_URL, {
       method: 'GET',
       redirect: 'follow',
+      headers: {
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': RYANAIR_WEB_USER_AGENT,
+      },
     });
 
     // Extract cookies from response
@@ -96,6 +110,58 @@ export class SessionManager {
   }
 
   /**
+   * Build headers for Ryanair web API calls.
+   */
+  private buildHeaders(
+    baseUrl: string,
+    params?: Record<string, string | number | undefined>
+  ): Record<string, string> {
+    const headers: Record<string, string> = {
+      Cookie: this.formatCookieHeader(),
+      Accept: 'application/json',
+      'User-Agent': 'ryanair-ts/1.0.0',
+    };
+
+    const requestUrl = new URL(baseUrl);
+    if (requestUrl.hostname !== 'www.ryanair.com') {
+      return headers;
+    }
+
+    headers.Accept = 'application/json, text/plain, */*';
+    headers['User-Agent'] = RYANAIR_WEB_USER_AGENT;
+
+    if (requestUrl.pathname.includes('/api/booking/')) {
+      headers.client = 'desktop';
+      headers['client-version'] = RYANAIR_WEB_CLIENT_VERSION;
+
+      const origin = params?.Origin;
+      const destination = params?.Destination;
+      const dateOut = params?.DateOut;
+
+      if (origin && destination && dateOut) {
+        const referer = new URL(`${BASE_SITE_FOR_SESSION_URL}/trip/flights/select`);
+        referer.searchParams.set('adults', String(params.ADT ?? 1));
+        referer.searchParams.set('teens', String(params.TEEN ?? 0));
+        referer.searchParams.set('children', String(params.CHD ?? 0));
+        referer.searchParams.set('infants', String(params.INF ?? 0));
+        referer.searchParams.set('dateOut', String(dateOut));
+        referer.searchParams.set('dateIn', String(params.DateIn ?? ''));
+        referer.searchParams.set('originIata', String(origin));
+        referer.searchParams.set('destinationIata', String(destination));
+        referer.searchParams.set('isConnectedFlight', String(params.IncludeConnectingFlights ?? false));
+        referer.searchParams.set('isReturn', String(params.RoundTrip ?? false));
+        referer.searchParams.set('discount', String(params.Disc ?? 0));
+        referer.searchParams.set('promoCode', String(params.promoCode ?? ''));
+        headers.Referer = referer.toString();
+      } else {
+        headers.Referer = BASE_SITE_FOR_SESSION_URL;
+      }
+    }
+
+    return headers;
+  }
+
+  /**
    * Make a GET request with session cookies
    * @param url - The URL to request
    * @param params - Optional query parameters
@@ -109,11 +175,7 @@ export class SessionManager {
 
     const response = await fetch(fullUrl, {
       method: 'GET',
-      headers: {
-        Cookie: this.formatCookieHeader(),
-        Accept: 'application/json',
-        'User-Agent': 'ryanair-ts/1.0.0',
-      },
+      headers: this.buildHeaders(url, params),
     });
 
     // Update cookies from response
