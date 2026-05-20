@@ -237,10 +237,12 @@ describe('Ryanair', () => {
   describe('getFlights', () => {
     it('should send Ryanair web client headers to the availability API', async () => {
       let capturedHeaders: Headers | null = null;
+      let capturedUrl: URL | null = null;
 
       server.use(
         http.get('https://www.ryanair.com/api/booking/v4/en-gb/availability', ({ request }) => {
           capturedHeaders = request.headers;
+          capturedUrl = new URL(request.url);
           return HttpResponse.json({
             currency: 'EUR',
             currPrecision: 2,
@@ -308,11 +310,13 @@ describe('Ryanair', () => {
 
       expect(capturedHeaders).not.toBeNull();
       expect(capturedHeaders!.get('client')).toBe('desktop');
-      expect(capturedHeaders!.get('client-version')).toBe('3.194.0');
+      expect(capturedHeaders!.get('client-version')).toBe('3.198.0');
       expect(capturedHeaders!.get('accept')).toBe('application/json, text/plain, */*');
       expect(capturedHeaders!.get('user-agent')).toContain('Mozilla/5.0');
       expect(capturedHeaders!.get('referer')).toContain('/ie/en/trip/flights/select');
       expect(capturedHeaders!.get('cookie')).toContain('rid=test-session-id');
+      expect(capturedUrl).not.toBeNull();
+      expect(capturedUrl!.searchParams.get('IncludePrimeFares')).toBe('false');
     });
   });
 

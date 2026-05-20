@@ -315,6 +315,7 @@ export class Ryanair {
       infants = 0,
       promoCode = '',
       includeConnectingFlights = false,
+      includePrimeFares = false,
       flexDaysBefore = 0,
       flexDaysAfter = 0,
     } = options;
@@ -331,6 +332,7 @@ export class Ryanair {
       Disc: 0,
       promoCode,
       IncludeConnectingFlights: includeConnectingFlights.toString(),
+      IncludePrimeFares: includePrimeFares.toString(),
       FlexDaysBeforeOut: flexDaysBefore,
       FlexDaysOut: flexDaysAfter,
       FlexDaysBeforeIn: 0,

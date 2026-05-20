@@ -1,6 +1,6 @@
 {
   "name": "ryanair-ts",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "TypeScript client for Ryanair flight search API",
   "author": "Erik Slovak <erik.slovak7@gmail.com>",
   "license": "MIT",

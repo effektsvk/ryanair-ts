@@ -4,7 +4,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const RYANAIR_WEB_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-const RYANAIR_WEB_CLIENT_VERSION = '3.194.0';
+const RYANAIR_WEB_CLIENT_VERSION = '3.198.0';
 
 function isoDateDaysFromNow(days: number): string {
   return new Date(Date.now() + days * MS_PER_DAY).toISOString().slice(0, 10);
@@ -136,6 +136,7 @@ const dateIn = process.env.DATE_IN ?? isoDateDaysFromNow(35);
 const origin = process.env.ORIGIN ?? 'STN';
 const destination = process.env.DESTINATION ?? 'BTS';
 const cheapestOrigin = process.env.CHEAPEST_ORIGIN ?? 'DUB';
+const requireAvailabilityFlights = process.env.REQUIRE_AVAILABILITY_FLIGHTS === 'true';
 
 const oneWayUrl = buildUrl('https://services-api.ryanair.com/farfnd/v4/oneWayFares', {
   departureAirportIataCode: cheapestOrigin,
@@ -158,6 +159,7 @@ const availabilityUrl = buildUrl('https://www.ryanair.com/api/booking/v4/en-gb/a
   Disc: '0',
   promoCode: '',
   IncludeConnectingFlights: 'false',
+  IncludePrimeFares: 'false',
   FlexDaysBeforeOut: '0',
   FlexDaysOut: '0',
   FlexDaysBeforeIn: '0',
@@ -176,6 +178,7 @@ console.log(
       origin,
       destination,
       cheapestOrigin,
+      requireAvailabilityFlights,
       currency: process.env.CURRENCY ?? 'EUR',
     },
     null,
@@ -232,6 +235,14 @@ results.push(
       destination,
       dateOut,
     });
+    if (requireAvailabilityFlights && flights.length === 0) {
+      return {
+        ok: false,
+        count: 0,
+        message: `No availability flights returned for ${origin} -> ${destination} on ${dateOut}`,
+        sample: null,
+      };
+    }
     return {
       count: flights.length,
       sample: flights[0] ?? null,

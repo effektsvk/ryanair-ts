@@ -160,6 +160,8 @@ export interface GetFlightsOptions {
   promoCode?: string;
   /** Include connecting flights (default: false) */
   includeConnectingFlights?: boolean;
+  /** Include Prime fares (default: false, matching Ryanair web app availability requests) */
+  includePrimeFares?: boolean;
   /** Number of flex days before outbound date (default: 0) */
   flexDaysBefore?: number;
   /** Number of flex days after outbound date (default: 0) */

@@ -13,7 +13,7 @@ const RYANAIR_WEB_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
-const RYANAIR_WEB_CLIENT_VERSION = '3.194.0';
+const RYANAIR_WEB_CLIENT_VERSION = '3.198.0';
 
 /**
  * Parse Set-Cookie header(s) and extract cookie name-value pairs

@@ -1,0 +1,46 @@
+name: Live availability
+
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-availability:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        route:
+          - name: London Stansted to Dublin
+            origin: STN
+            destination: DUB
+          - name: Dublin to London Stansted
+            origin: DUB
+            destination: STN
+
+    name: ${{ matrix.route.name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run live availability probe
+        run: npm run test:live
+        env:
+          ORIGIN: ${{ matrix.route.origin }}
+          DESTINATION: ${{ matrix.route.destination }}
+          CHEAPEST_ORIGIN: ${{ matrix.route.origin }}
+          REQUIRE_AVAILABILITY_FLIGHTS: 'true'
