@@ -310,7 +310,7 @@ describe('Ryanair', () => {
 
       expect(capturedHeaders).not.toBeNull();
       expect(capturedHeaders!.get('client')).toBe('desktop');
-      expect(capturedHeaders!.get('client-version')).toBe('3.198.0');
+      expect(capturedHeaders!.get('client-version')).toBe('3.199.0');
       expect(capturedHeaders!.get('accept')).toBe('application/json, text/plain, */*');
       expect(capturedHeaders!.get('user-agent')).toContain('Mozilla/5.0');
       expect(capturedHeaders!.get('referer')).toContain('/ie/en/trip/flights/select');

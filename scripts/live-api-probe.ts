@@ -4,7 +4,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const RYANAIR_WEB_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-const RYANAIR_WEB_CLIENT_VERSION = '3.198.0';
+const RYANAIR_WEB_CLIENT_VERSION = '3.199.0';
 
 function isoDateDaysFromNow(days: number): string {
   return new Date(Date.now() + days * MS_PER_DAY).toISOString().slice(0, 10);
