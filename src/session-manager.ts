@@ -13,7 +13,55 @@ const RYANAIR_WEB_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
-const RYANAIR_WEB_CLIENT_VERSION = '3.199.0';
+const RYANAIR_WEB_CLIENT_VERSION_FALLBACK = '3.199.1';
+
+let ryanairWebClientVersion: string | undefined;
+let ryanairWebClientVersionPromise: Promise<string> | undefined;
+
+async function resolveRyanairWebClientVersion(selectPageUrl: string): Promise<string> {
+  if (ryanairWebClientVersion) {
+    return ryanairWebClientVersion;
+  }
+
+  ryanairWebClientVersionPromise ??= fetch(selectPageUrl, {
+    method: 'GET',
+    redirect: 'follow',
+    headers: {
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'User-Agent': RYANAIR_WEB_USER_AGENT,
+    },
+  })
+    .then(async (response) => {
+      const html = await response.text();
+      const assetPath = html.match(/(?:src|href)="([^"]*\/flightselect_dist\/desktop\/main\.[^"]+\.js[^"]*)"/)?.[1];
+
+      if (!assetPath) {
+        return RYANAIR_WEB_CLIENT_VERSION_FALLBACK;
+      }
+
+      const assetUrl = new URL(assetPath, selectPageUrl);
+      const assetResponse = await fetch(assetUrl, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/javascript,*/*;q=0.8',
+          'User-Agent': RYANAIR_WEB_USER_AGENT,
+        },
+      });
+      const asset = await assetResponse.text();
+
+      return (
+        asset.match(/const\s+\w+="(\d+\.\d+\.\d+)"/)?.[1] ??
+        RYANAIR_WEB_CLIENT_VERSION_FALLBACK
+      );
+    })
+    .catch(() => RYANAIR_WEB_CLIENT_VERSION_FALLBACK)
+    .finally(() => {
+      ryanairWebClientVersionPromise = undefined;
+    });
+
+  ryanairWebClientVersion = await ryanairWebClientVersionPromise;
+  return ryanairWebClientVersion;
+}
 
 /**
  * Parse Set-Cookie header(s) and extract cookie name-value pairs
@@ -112,10 +160,10 @@ export class SessionManager {
   /**
    * Build headers for Ryanair web API calls.
    */
-  private buildHeaders(
+  private async buildHeaders(
     baseUrl: string,
     params?: Record<string, string | number | undefined>
-  ): Record<string, string> {
+  ): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
       Cookie: this.formatCookieHeader(),
       Accept: 'application/json',
@@ -131,12 +179,11 @@ export class SessionManager {
     headers['User-Agent'] = RYANAIR_WEB_USER_AGENT;
 
     if (requestUrl.pathname.includes('/api/booking/')) {
-      headers.client = 'desktop';
-      headers['client-version'] = RYANAIR_WEB_CLIENT_VERSION;
-
       const origin = params?.Origin;
       const destination = params?.Destination;
       const dateOut = params?.DateOut;
+
+      let selectPageUrl = BASE_SITE_FOR_SESSION_URL;
 
       if (origin && destination && dateOut) {
         const referer = new URL(`${BASE_SITE_FOR_SESSION_URL}/trip/flights/select`);
@@ -152,10 +199,14 @@ export class SessionManager {
         referer.searchParams.set('isReturn', String(params.RoundTrip ?? false));
         referer.searchParams.set('discount', String(params.Disc ?? 0));
         referer.searchParams.set('promoCode', String(params.promoCode ?? ''));
-        headers.Referer = referer.toString();
+        selectPageUrl = referer.toString();
+        headers.Referer = selectPageUrl;
       } else {
         headers.Referer = BASE_SITE_FOR_SESSION_URL;
       }
+
+      headers.client = 'desktop';
+      headers['client-version'] = await resolveRyanairWebClientVersion(selectPageUrl);
     }
 
     return headers;
@@ -175,7 +226,7 @@ export class SessionManager {
 
     const response = await fetch(fullUrl, {
       method: 'GET',
-      headers: this.buildHeaders(url, params),
+      headers: await this.buildHeaders(url, params),
     });
 
     // Update cookies from response

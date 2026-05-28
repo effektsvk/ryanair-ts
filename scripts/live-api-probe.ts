@@ -4,7 +4,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const RYANAIR_WEB_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-const RYANAIR_WEB_CLIENT_VERSION = '3.199.0';
+const RYANAIR_WEB_CLIENT_VERSION_FALLBACK = '3.199.1';
 
 function isoDateDaysFromNow(days: number): string {
   return new Date(Date.now() + days * MS_PER_DAY).toISOString().slice(0, 10);
@@ -67,6 +67,42 @@ async function fetchRyanairSiteCookie(): Promise<string> {
   });
 
   return parseCookieHeader(response.headers.get('set-cookie'));
+}
+
+async function resolveRyanairWebClientVersion(selectPageUrl: string): Promise<string> {
+  try {
+    const response = await fetch(selectPageUrl, {
+      method: 'GET',
+      redirect: 'follow',
+      headers: {
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': RYANAIR_WEB_USER_AGENT,
+      },
+    });
+    const html = await response.text();
+    const assetPath = html.match(/(?:src|href)="([^"]*\/flightselect_dist\/desktop\/main\.[^"]+\.js[^"]*)"/)?.[1];
+
+    if (!assetPath) {
+      return RYANAIR_WEB_CLIENT_VERSION_FALLBACK;
+    }
+
+    const assetUrl = new URL(assetPath, selectPageUrl);
+    const assetResponse = await fetch(assetUrl, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/javascript,*/*;q=0.8',
+        'User-Agent': RYANAIR_WEB_USER_AGENT,
+      },
+    });
+    const asset = await assetResponse.text();
+
+    return (
+      asset.match(/const\s+\w+="(\d+\.\d+\.\d+)"/)?.[1] ??
+      RYANAIR_WEB_CLIENT_VERSION_FALLBACK
+    );
+  } catch {
+    return RYANAIR_WEB_CLIENT_VERSION_FALLBACK;
+  }
 }
 
 async function runProbe<T>(label: string, probe: () => Promise<T>): Promise<boolean> {
@@ -167,8 +203,23 @@ const availabilityUrl = buildUrl('https://www.ryanair.com/api/booking/v4/en-gb/a
   RoundTrip: 'false',
   ToUs: 'AGREED',
 });
+const availabilityReferer = buildUrl('https://www.ryanair.com/ie/en/trip/flights/select', {
+  adults: '1',
+  teens: '0',
+  children: '0',
+  infants: '0',
+  dateOut,
+  dateIn: '',
+  originIata: origin,
+  destinationIata: destination,
+  isConnectedFlight: 'false',
+  isReturn: 'false',
+  discount: '0',
+  promoCode: '',
+});
 
 const availabilityCookie = await fetchRyanairSiteCookie();
+const ryanairWebClientVersion = await resolveRyanairWebClientVersion(availabilityReferer);
 
 console.log(
   JSON.stringify(
@@ -179,6 +230,7 @@ console.log(
       destination,
       cheapestOrigin,
       requireAvailabilityFlights,
+      ryanairWebClientVersion,
       currency: process.env.CURRENCY ?? 'EUR',
     },
     null,
@@ -196,7 +248,8 @@ results.push(
       Accept: 'application/json, text/plain, */*',
       'User-Agent': RYANAIR_WEB_USER_AGENT,
       client: 'desktop',
-      'client-version': RYANAIR_WEB_CLIENT_VERSION,
+      'client-version': ryanairWebClientVersion,
+      Referer: availabilityReferer,
     })
   )
 );

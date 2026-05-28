@@ -14,6 +14,18 @@ export const handlers = [
       },
     });
   }),
+  http.get('https://www.ryanair.com/ie/en/trip/flights/select', () => {
+    return HttpResponse.html(
+      '<html><script src="/flightselect_dist/desktop/main.test.js"></script></html>'
+    );
+  }),
+  http.get('https://www.ryanair.com/flightselect_dist/desktop/main.test.js', () => {
+    return new HttpResponse('const version="3.250.0";', {
+      headers: {
+        'Content-Type': 'application/javascript',
+      },
+    });
+  }),
 ];
 
 export const server = setupServer(...handlers);
