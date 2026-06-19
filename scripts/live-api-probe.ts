@@ -173,6 +173,7 @@ const origin = process.env.ORIGIN ?? 'STN';
 const destination = process.env.DESTINATION ?? 'BTS';
 const cheapestOrigin = process.env.CHEAPEST_ORIGIN ?? 'DUB';
 const requireAvailabilityFlights = process.env.REQUIRE_AVAILABILITY_FLIGHTS === 'true';
+const availabilityOnly = process.env.AVAILABILITY_ONLY === 'true';
 
 const oneWayUrl = buildUrl('https://services-api.ryanair.com/farfnd/v4/oneWayFares', {
   departureAirportIataCode: cheapestOrigin,
@@ -230,6 +231,7 @@ console.log(
       destination,
       cheapestOrigin,
       requireAvailabilityFlights,
+      availabilityOnly,
       ryanairWebClientVersion,
       currency: process.env.CURRENCY ?? 'EUR',
     },
@@ -240,7 +242,9 @@ console.log(
 
 const results = [];
 
-results.push(await runProbe('direct farfnd oneWayFares GET', () => fetchStatus(oneWayUrl)));
+if (!availabilityOnly) {
+  results.push(await runProbe('direct farfnd oneWayFares GET', () => fetchStatus(oneWayUrl)));
+}
 results.push(
   await runProbe('direct booking availability GET', () =>
     fetchStatus(availabilityUrl, {
@@ -253,34 +257,36 @@ results.push(
     })
   )
 );
-results.push(
-  await runProbe('client getCheapestFlights()', async () => {
-    const flights = await createClient().getCheapestFlights({
-      airport: cheapestOrigin,
-      dateFrom: dateOut,
-      dateTo: dateOut,
-    });
-    return {
-      count: flights.length,
-      sample: flights[0] ?? null,
-    };
-  })
-);
-results.push(
-  await runProbe('client getCheapestReturnFlights()', async () => {
-    const trips = await createClient().getCheapestReturnFlights({
-      sourceAirport: cheapestOrigin,
-      dateFrom: dateOut,
-      dateTo: dateOut,
-      returnDateFrom: dateIn,
-      returnDateTo: dateIn,
-    });
-    return {
-      count: trips.length,
-      sample: trips[0] ?? null,
-    };
-  })
-);
+if (!availabilityOnly) {
+  results.push(
+    await runProbe('client getCheapestFlights()', async () => {
+      const flights = await createClient().getCheapestFlights({
+        airport: cheapestOrigin,
+        dateFrom: dateOut,
+        dateTo: dateOut,
+      });
+      return {
+        count: flights.length,
+        sample: flights[0] ?? null,
+      };
+    })
+  );
+  results.push(
+    await runProbe('client getCheapestReturnFlights()', async () => {
+      const trips = await createClient().getCheapestReturnFlights({
+        sourceAirport: cheapestOrigin,
+        dateFrom: dateOut,
+        dateTo: dateOut,
+        returnDateFrom: dateIn,
+        returnDateTo: dateIn,
+      });
+      return {
+        count: trips.length,
+        sample: trips[0] ?? null,
+      };
+    })
+  );
+}
 results.push(
   await runProbe('client getFlights() availability', async () => {
     const flights = await createClient().getFlights({

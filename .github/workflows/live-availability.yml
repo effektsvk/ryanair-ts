@@ -44,3 +44,4 @@ jobs:
           DESTINATION: ${{ matrix.route.destination }}
           CHEAPEST_ORIGIN: ${{ matrix.route.origin }}
           REQUIRE_AVAILABILITY_FLIGHTS: 'true'
+          AVAILABILITY_ONLY: 'true'
